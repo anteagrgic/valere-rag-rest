@@ -1,18 +1,24 @@
+version: "3.9"
 services:
   api:
     build: .
+    container_name: valere-rag-api
+    env_file: .env
     ports:
       - "8000:8000"
-    environment:
-      - QDRANT_HOST=qdrant
-      - QDRANT_PORT=6333
     depends_on:
       - qdrant
+    volumes:
+      - ./data:/app/data
+      - ./app:/app/app
+
   qdrant:
-    image: qdrant/qdrant:latest
+    image: qdrant/qdrant:v1.8.4
+    container_name: qdrant
     ports:
       - "6333:6333"
     volumes:
       - qdrant_storage:/qdrant/storage
+
 volumes:
   qdrant_storage:
