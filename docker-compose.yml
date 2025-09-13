@@ -3,7 +3,8 @@ services:
   api:
     build: .
     container_name: valere-rag-api
-    env_file: .env
+    env_file: 
+      - .env
     ports:
       - "8000:8000"
     depends_on:

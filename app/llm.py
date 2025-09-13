@@ -8,7 +8,7 @@ class SupportsChat(Protocol):
 class OpenAIChat:
     def __init__(self):
         from langchain_openai import ChatOpenAI
-        self.llm = ChatOpenAI(model=settings.openai_model, temperature=0.2, api_key=settings.openai_api_key)
+        self.llm = ChatOpenAI(model=settings.openai_model, temperature=0.2)
 
     def invoke(self, messages: list[dict]) -> str:
         from langchain.schema import HumanMessage, SystemMessage
