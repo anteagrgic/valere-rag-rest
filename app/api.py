@@ -4,7 +4,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from .config import settings
 from .models import IngestRequest, IngestResponse, QueryRequest, QueryResponse, CollectionsResponse
 
-from .rag import answer_with_rag
+# PROMJENA: koristimo v2 chain
+from .rag import answer_with_rag_v2
 from .vectorstore import get_or_create_vectorstore, make_qdrant_client, as_sourcedocs
 
 app = FastAPI(title="Valere RAG REST API", version="0.1.0")
@@ -49,5 +50,11 @@ def ingest(req: IngestRequest):
 def query(req: QueryRequest):
     if not req.query.strip():
         raise HTTPException(400, "Empty query.")
-    answer, docs = answer_with_rag(req.query, k=req.k)
+    # PROMJENA: zovi v2 chain + default k ako je None/0
+    k = req.k or 5
+    try:
+        answer, docs = answer_with_rag_v2(req.query, k=k)
+    except Exception as e:
+        # zgodno za debug da dobiješ razlog umjesto "puklo"
+        raise HTTPException(status_code=500, detail=f"RAG error: {e}")
     return QueryResponse(answer=answer, sources=as_sourcedocs(docs))
