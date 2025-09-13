@@ -9,10 +9,11 @@ RAG demo: **20 Newsgroups → Qdrant (vector DB) → FastAPI REST**.
 
 Choose one provider in .env:
 
-## a) Ollama (local, recommended)
+## a) Ollama (Compose, nije potrebno ručno pokretati)
         LLM_PROVIDER=ollama
-        OLLAMA_BASE_URL=http://host.docker.internal:11434
+        OLLAMA_BASE_URL=http://ollama:11434
         OLLAMA_MODEL=llama3.2:3b
+Za prvi start pokrenite: `docker exec -it ollama ollama pull <model>`
 
 ## b) OpenAI (paid, billing required)
         LLM_PROVIDER=openai
@@ -24,17 +25,17 @@ Choose one provider in .env:
 
 3. **Ingest**
     make ingest
-    # or:
-    # curl -X POST http://localhost:8000/ingest \
-    #   -H "Content-Type: application/json" \
-    #   -d '{"dataset":"20newsgroups","recreate":true}'
+     or:
+     curl -X POST http://localhost:8000/ingest \
+       -H "Content-Type: application/json" \
+       -d '{"dataset":"20newsgroups", "recreate":true}'
 
 4. **Query**
     make query
-    # or:
-    # curl -s -X POST http://localhost:8000/query \
-    #   -H "Content-Type: application/json" \
-    #   -d '{"query":"What is discussed about space exploration?","k":5}'
+     or:
+     curl -s -X POST http://localhost:8000/query \
+       -H "Content-Type: application/json" \
+       -d '{"query":"What is discussed about space exploration?","k":5}'
 
 5. **Docs**
     Swagger: http://localhost:8000/docs
@@ -58,24 +59,22 @@ Choose one provider in .env:
 ## Troubleshooting
 - 429 insufficient_quota (OpenAI): add billing or switch to `LLM_PROVIDER=ollama`
 - Slow first response (Ollama/CPU): normal; try `k=1..2` or smaller model `llama3.2:3b`
-- Container can’t reach Ollama: use `OLLAMA_BASE_URL=http://host.docker.internal:11434`
-    (Linux: in `docker-compose.yml` under api add `extra_hosts: ["host.docker.internal:host-gateway"]`)
 
 
 
 ## Apendix- Ollama quick starst(local)
-# 1) Install (macOS)
+1) Install (macOS)
 `brew install ollama`
 
-# 2) Start the server (keep this window open)
+2) Start the server (keep this window open)
 `ollama serve`
-# or as a service:
-# brew services start ollama
+or as a service:
+brew services start ollama
 
-# 3) Pull a model (fast on CPU)
+3) Pull a model (fast on CPU)
 `ollama pull llama3.2:3b`
 
-# 4) Test the server
+4) Test the server
 curl -s http://localhost:11434/api/tags | jq .
 curl -s http://localhost:11434/api/generate \
 -d '{"model":"llama3.2:3b","prompt":"Say hi in one sentence.","stream":false}'

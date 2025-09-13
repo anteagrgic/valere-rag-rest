@@ -8,7 +8,7 @@ class SupportsChat(Protocol):
 class OpenAIChat:
     def __init__(self):
         from langchain_openai import ChatOpenAI
-        self.llm = ChatOpenAI(model=settings.openai_model, temperature=0.2)
+        self.llm = ChatOpenAI(model=settings.openai_model, api_key=settings.openai_api_key, temperature=0.2)
 
     def invoke(self, messages: list[dict]) -> str:
         from langchain.schema import HumanMessage, SystemMessage
@@ -31,8 +31,7 @@ class OllamaChat:
         )
 
     def invoke(self, messages: list[dict]) -> str:
-        text = "\n".join([m["content"] for m in messages])
-        out = self.llm.invoke(text)
+        out = self.llm.invoke(messages)
         return getattr(out, "content", str(out))
 
 class MockChat:
