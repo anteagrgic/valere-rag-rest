@@ -1,9 +1,10 @@
-# app/api.py
+
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
 from .config import settings
 from .models import IngestRequest, IngestResponse, QueryRequest, QueryResponse, CollectionsResponse
+
 from .errors import register_exception_handlers, ProviderError, IngestionError, VectorStoreError
 
 # koristimo v2 chain

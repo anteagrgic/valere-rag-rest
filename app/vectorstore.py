@@ -1,4 +1,4 @@
-# app/vectorstore.py
+
 from typing import Iterable, List
 from qdrant_client import QdrantClient
 from qdrant_client.http import models as qmodels
@@ -8,7 +8,7 @@ from .errors import VectorStoreError
 from .config import settings
 from .providers.embedding_hf import HFEmbeddingService
 
-# --- lazy singleton za embedding servis (1 instanca kroz proces) ---
+
 _EMB_SVC: HFEmbeddingService | None = None
 
 def get_embedding_service() -> HFEmbeddingService:
@@ -16,6 +16,7 @@ def get_embedding_service() -> HFEmbeddingService:
     if _EMB_SVC is None:
         _EMB_SVC = HFEmbeddingService()
     return _EMB_SVC
+
 
 def make_qdrant_client() -> QdrantClient:
     return QdrantClient(
@@ -29,6 +30,7 @@ def drop_collection_if_exists(name: str):
     if name in [c.name for c in client.get_collections().collections]:
         client.delete_collection(name)
 
+        
 def _ensure_collection(client: QdrantClient, collection: str, dim: int):
     existing = [c.name for c in client.get_collections().collections]
     if collection not in existing:
@@ -40,7 +42,7 @@ def _ensure_collection(client: QdrantClient, collection: str, dim: int):
 def get_or_create_vectorstore(collection: str, recreate: bool = False) -> LCQdrant:           
     try:
             client = make_qdrant_client()
-            emb = get_embedding_service() # <-- naš adapter (sa stvarnom dimenzijom)
+            emb = get_embedding_service() # <-- adapter (sa stvarnom dimenzijom)
     except Exception as e:
         raise VectorStoreError(str(e))
 
@@ -58,6 +60,7 @@ def get_or_create_vectorstore(collection: str, recreate: bool = False) -> LCQdra
     # LangChain-ov Qdrant wrapper koristi "raw" embeddings objekt
     return LCQdrant(client=client, collection_name=collection, embeddings=emb.raw)
 
+
 def add_documents(docs: Iterable[Document], collection: str) -> int:
     vs = get_or_create_vectorstore(collection)
     ids = vs.add_documents(list(docs))
@@ -67,6 +70,7 @@ def as_sourcedocs(docs: List[Document]):
     from .models import SourceDoc
     sdocs = []
     for i, d in enumerate(docs):
+
         m = d.metadata or {}
         sdocs.append(
             SourceDoc(
@@ -75,6 +79,7 @@ def as_sourcedocs(docs: List[Document]):
                 target_name=m.get("target_name"),
                 metadata=m,
                 content=d.page_content,
+
             )
         )
     return sdocs

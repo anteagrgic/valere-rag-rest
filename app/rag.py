@@ -1,4 +1,4 @@
-# app/rag.py
+
 from typing import List, Tuple, Dict, Any
 from langchain.prompts import ChatPromptTemplate
 from langchain.schema import Document
@@ -155,3 +155,5 @@ def answer_with_rag_v2(question: str, k: int = 5) -> tuple[str, List[Document], 
     out = chain.invoke(question)
     # out expected to be {"answer": str, "docs": List[Document]}
     return out["answer"], out["docs"], out.get("meta", {})
+
+

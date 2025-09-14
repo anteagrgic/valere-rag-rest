@@ -57,3 +57,4 @@ Minimalni RAG demo: 20 Newsgroups → Qdrant (vector DB) → FastAPI REST → LL
 - Embeddings: all-MiniLM-L6-v2 (dim=384)
 - Vector DB: Qdrant (cosine)
 - LLM: OpenAI / Ollama / Mock (fallback)
+

@@ -1,7 +1,15 @@
-from app.rag import format_context
+import httpx, pytest
 
-def test_format_context_no_crash():
-    from langchain.schema import Document
-    docs = [Document(page_content="hello world", metadata={"target_name":"misc"})]
-    ctx = format_context(docs)
-    assert "hello world" in ctx
+BASE = "http://localhost:8000"
+
+@pytest.mark.timeout(10)
+def test_health():
+    r = httpx.get(f"{BASE}/health", timeout=5)
+    assert r.status_code == 200
+    assert r.json()["status"] == "ok"
+
+def test_collections():
+    r = httpx.get(f"{BASE}/collections", timeout=5)
+    assert r.status_code == 200
+    assert isinstance(r.json(), list)
+

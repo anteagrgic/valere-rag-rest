@@ -1,12 +1,14 @@
-# app/llm.py
+
 from time import perf_counter
 from typing import List
 from .config import settings
 from .interfaces import ChatMessage, ChatResult, SupportsChat
 
+
 class OpenAIChat:
     def __init__(self):
         from langchain_openai import ChatOpenAI
+
         self.llm = ChatOpenAI(
             model=settings.openai_model,
             api_key=settings.openai_api_key,
@@ -17,10 +19,13 @@ class OpenAIChat:
 
     def invoke(self, messages: List[ChatMessage]) -> ChatResult:
         from langchain.schema import HumanMessage, SystemMessage, AIMessage
+
+        
         lmsgs = []
         for m in messages:
             if m["role"] == "system":
                 lmsgs.append(SystemMessage(content=m["content"]))
+
             elif m["role"] == "assistant":
                 lmsgs.append(AIMessage(content=m["content"]))
             else:
@@ -43,6 +48,7 @@ class OpenAIChat:
     def provider(self) -> str: return "openai"
     def model(self) -> str | None: return settings.openai_model
 
+
 class OllamaChat:
     def __init__(self):
         from langchain_community.chat_models import ChatOllama
@@ -50,6 +56,7 @@ class OllamaChat:
             base_url=settings.ollama_base_url,
             model=settings.ollama_model,
             temperature=0.2,
+
             timeout=60,
         )
 
@@ -94,7 +101,7 @@ class MockChat:
     def model(self) -> str | None: return "mock"
 
 def make_chat() -> SupportsChat:
-    prov = (settings.llm_provider or "mock").lower()
+    prov = (settings.llm_provider or "mock").lower()    
     if prov == "openai" and settings.openai_api_key:
         return OpenAIChat()
     if prov == "ollama":
