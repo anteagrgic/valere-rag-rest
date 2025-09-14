@@ -5,7 +5,6 @@ from langchain.text_splitter import RecursiveCharacterTextSplitter
 from app.utils import ensure_dirs
 
 from .config import settings
-from .utils import ensure_dirs
 from .vectorstore import add_documents
 
 def load_20newsgroups_docs() -> List[Document]:

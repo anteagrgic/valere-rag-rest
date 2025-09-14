@@ -21,5 +21,25 @@ services:
     volumes:
       - qdrant_storage:/qdrant/storage
 
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:6333/readyz"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ollama
+    # (nema ports — koristimo je samo unutar docker mreže)
+    volumes:
+      - ollama:/root/.ollama
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:11434/api/tags"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+
+
 volumes:
   qdrant_storage:
+  ollama:
