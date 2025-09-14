@@ -1,60 +1,98 @@
+# app/api.py
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 
 from .config import settings
 from .models import IngestRequest, IngestResponse, QueryRequest, QueryResponse, CollectionsResponse
+from .errors import register_exception_handlers, ProviderError, IngestionError, VectorStoreError
 
-# PROMJENA: koristimo v2 chain
+# koristimo v2 chain
 from .rag import answer_with_rag_v2
-from .vectorstore import get_or_create_vectorstore, make_qdrant_client, as_sourcedocs
-
-app = FastAPI(title="Valere RAG REST API", version="0.1.0")
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"], allow_credentials=True, allow_methods=["*"], allow_headers=["*"],
+from .vectorstore import (
+    get_or_create_vectorstore,
+    make_qdrant_client,
+    as_sourcedocs,
+    get_embedding_service,
 )
 
-@app.get("/health")
-def health():
-    return {"status": "ok", "collection": settings.qdrant_collection}
+def build_app() -> FastAPI:
+    app = FastAPI(title="Valere RAG REST API", version="0.1.0")
+    register_exception_handlers(app)
 
-@app.get("/collections", response_model=CollectionsResponse)
-def list_collections():
-    client = make_qdrant_client()
-    cols = [c.name for c in client.get_collections().collections]
-    return CollectionsResponse(collections=cols)
-
-@app.delete("/collections/{name}")
-def delete_collection(name: str):
-    client = make_qdrant_client()
-    client.delete_collection(name)
-    return {"deleted": name}
-
-@app.post("/ingest", response_model=IngestResponse)
-def ingest(req: IngestRequest):
-    from .ingest import ingest_20newsgroups
-    if req.dataset.lower() != "20newsgroups":
-        raise HTTPException(400, "Only '20newsgroups' supported in this version.")
-    # Ensure collection exists (and optionally recreate)
-    _ = get_or_create_vectorstore(settings.qdrant_collection, recreate=req.recreate)
-    n = ingest_20newsgroups(
-        collection=settings.qdrant_collection,
-        recreate=req.recreate,
-        chunk_size=req.chunk_size or settings.chunk_size,
-        chunk_overlap=req.chunk_overlap or settings.chunk_overlap,
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"], allow_credentials=True, allow_methods=["*"], allow_headers=["*"],
     )
-    return IngestResponse(collection=settings.qdrant_collection, chunks_indexed=n, dim=384)
 
-@app.post("/query", response_model=QueryResponse)
-def query(req: QueryRequest):
-    if not req.query.strip():
-        raise HTTPException(400, "Empty query.")
-    # PROMJENA: zovi v2 chain + default k ako je None/0
-    k = req.k or 5
-    try:
-        answer, docs = answer_with_rag_v2(req.query, k=k)
-    except Exception as e:
-        # zgodno za debug da dobiješ razlog umjesto "puklo"
-        raise HTTPException(status_code=500, detail=f"RAG error: {e}")
-    return QueryResponse(answer=answer, sources=as_sourcedocs(docs))
+    @app.get("/health")
+    def health():
+        return {"status": "ok", "collection": settings.qdrant_collection}
+
+    @app.get("/collections", response_model=CollectionsResponse)
+    def list_collections():
+        client = make_qdrant_client()
+        cols = [c.name for c in client.get_collections().collections]
+        return CollectionsResponse(collections=cols)
+
+    @app.delete("/collections/{name}")
+    def delete_collection(name: str):
+        client = make_qdrant_client()
+        client.delete_collection(name)
+        return {"deleted": name}
+
+    @app.post("/ingest", response_model=IngestResponse)
+    def ingest(req: IngestRequest):
+        from .ingest import ingest_20newsgroups
+
+        if req.dataset.lower() != "20newsgroups":
+            raise HTTPException(400, "Only '20newsgroups' supported in this version.")
+
+        # 1) osiguraj kolekciju u Qdrantu (može pasti na krivoj konfiguraciji)
+        try:
+            _ = get_or_create_vectorstore(settings.qdrant_collection, recreate=req.recreate)
+        except Exception as e:
+            raise VectorStoreError(str(e))
+
+        # 2) pokreni ingest pipeline (može pasti na datasetu/chunkingu/upsertu)
+        try:
+            n = ingest_20newsgroups(
+                collection=settings.qdrant_collection,
+                recreate=req.recreate,
+                chunk_size=req.chunk_size or settings.chunk_size,
+                chunk_overlap=req.chunk_overlap or settings.chunk_overlap,
+            )
+        except Exception as e:
+            raise IngestionError(str(e))
+
+        emb = get_embedding_service()
+        return IngestResponse(collection=settings.qdrant_collection, chunks_indexed=n, dim=emb.dim())
+
+    @app.post("/query", response_model=QueryResponse)
+    def query(req: QueryRequest):
+        if not req.query.strip():
+            raise HTTPException(400, "Empty query.")
+
+        k = req.k or 5
+        try:
+            answer, docs, meta = answer_with_rag_v2(req.query, k=k)
+        except ProviderError:
+            raise
+        except VectorStoreError:
+            raise
+        except Exception as e:
+            raise ProviderError(str(e))
+
+        return QueryResponse(
+            answer=answer,
+            sources=as_sourcedocs(docs),
+            provider=meta.get("provider"),
+            model=meta.get("model"),
+            latency_ms=meta.get("latency_ms"),
+            prompt_tokens=meta.get("prompt_tokens"),
+            completion_tokens=meta.get("completion_tokens"),
+        )
+
+    return app
+
+# kompatibilnost za uvicorn/gunicorn: uvicorn app.api:app
+app = build_app()
