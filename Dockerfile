@@ -4,6 +4,7 @@ WORKDIR /app
 
 
 # System deps (curl zbog healthcheckova i općenito, build-essential zbog uvloop itd.)
+# na kraju healcheck-ovi ipak bez curl
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential curl git \
  && rm -rf /var/lib/apt/lists/*
