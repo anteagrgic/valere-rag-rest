@@ -1,14 +1,15 @@
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-
 from .config import settings
 from .models import IngestRequest, IngestResponse, QueryRequest, QueryResponse, CollectionsResponse
-
 from .errors import register_exception_handlers, ProviderError, IngestionError, VectorStoreError
+from .models import IngestRequest, IngestResponse, QueryRequest, QueryResponse, CollectionsResponse, SourceDoc, MetaInfo
 
 # koristimo v2 chain
 from .rag import answer_with_rag_v2
+# napredni RAG (translation + multi-query + fusion)
+from .rag_advanced import answer_advanced
 from .vectorstore import (
     get_or_create_vectorstore,
     make_qdrant_client,
@@ -69,13 +70,35 @@ def build_app() -> FastAPI:
         return IngestResponse(collection=settings.qdrant_collection, chunks_indexed=n, dim=emb.dim())
 
     @app.post("/query", response_model=QueryResponse)
-    def query(req: QueryRequest):
+    def query_endpoint(req: QueryRequest):
         if not req.query.strip():
             raise HTTPException(400, "Empty query.")
 
         k = req.k or 5
+        # Ako klijent pošalje napredne opcije -> koristi advanced,
+        # inače fallback na postojeći v2 chain
+        use_adv = bool(getattr(req, "mode", None)) or (getattr(req, "translate", None) is not None)
+
         try:
-            answer, docs, meta = answer_with_rag_v2(req.query, k=k)
+            if use_adv:
+                mode = (
+                    req.mode
+                    or ("fusion" if getattr(settings, "enable_rag_fusion", True)
+                        else "multi" if getattr(settings, "enable_multi_query", True)
+                        else "simple")
+                )
+
+                res = answer_advanced(
+                    req.query,
+                    k=k,
+                    translate=getattr(req, "translate", None),
+                    mode=mode,
+                    n_queries=getattr(req, "n_queries", None) or getattr(settings, "multi_query_n", 4),
+                    k_smooth=getattr(settings, "rrf_k_smooth", 60),
+                )
+                answer, docs, meta = res.answer, res.docs, res.meta
+            else:
+                answer, docs, meta = answer_with_rag_v2(req.query, k=k)
         except ProviderError:
             raise
         except VectorStoreError:
@@ -86,11 +109,7 @@ def build_app() -> FastAPI:
         return QueryResponse(
             answer=answer,
             sources=as_sourcedocs(docs),
-            provider=meta.get("provider"),
-            model=meta.get("model"),
-            latency_ms=meta.get("latency_ms"),
-            prompt_tokens=meta.get("prompt_tokens"),
-            completion_tokens=meta.get("completion_tokens"),
+            meta=MetaInfo(**(meta or {})),
         )
 
     return app

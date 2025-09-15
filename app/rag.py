@@ -95,8 +95,8 @@ def _call_llm_from_prompt(messages: List[Dict[str, Any]]):
     except Exception as e:
         from .errors import ProviderError
         raise ProviderError(str(e))
-    #  make_chat.invoke expects a list of dicts like {"role": "...", "content": "..."}
-    return chat.invoke(messages)
+        #  make_chat.invoke expects a list of dicts like {"role": "...", "content": "..."}
+    
 
 def _add_context(inp: Dict[str, Any]) -> Dict[str, Any]:
     """
