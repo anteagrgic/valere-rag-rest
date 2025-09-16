@@ -106,8 +106,6 @@ curl -sS -X POST http://localhost:8000/query   -H "Content-Type: application/jso
 
 ## Napredni RAG (Translation / Multi-Query / Fusion)
 
-Dostupno preko `POST /query`:
-
 - `mode`: `"simple" | "multi" | "fusion"`
   - **multi**: LLM generira više semantički različitih upita i **spaja** rezultate (union + dedupe).
   - **fusion**: koristi **Reciprocal Rank Fusion (RRF)** za ujedinjavanje rangova više lista.
@@ -152,69 +150,6 @@ curl -sS -X POST http://localhost:8000/query   -H "Content-Type: application/jso
 ```bash
 curl -sS -X POST http://localhost:8000/query   -H "Content-Type: application/json"   -d '{"query":"Ko je izvršni direktor OpenAI?","k":5,"mode":"fusion","translate":true}' | jq ".meta"
 ```
-
----
-
-## Bash testovi (kopiraj u .sh)
-
-> Ove skripte možeš spremiti u `bash-tests/` i pokrenuti:  
-> `chmod +x bash-tests/*.sh && bash bash-tests/test_multi_query.sh`
-
-**`bash-tests/test_health_ingest.sh`**
-```bash
-#!/usr/bin/env bash
-set -euo pipefail
-API="${API:-http://localhost:8000}"
-
-echo "Checking API health..."
-curl -fsS "$API/health" | jq -e '.status=="ok"' >/dev/null
-
-echo "Ingesting dataset (20newsgroups)…"
-curl -fsS -X POST "$API/ingest" -H "Content-Type: application/json"   -d '{"dataset":"20newsgroups","recreate":false}' | jq -e '.collection=="newsgroups"' >/dev/null
-
-echo "OK ✅"
-```
-
-**`bash-tests/test_multi_query.sh`**
-```bash
-#!/usr/bin/env bash
-set -euo pipefail
-API="${API:-http://localhost:8000}"
-
-BODY='{"query":"Who is the CEO of OpenAI?","k":5,"mode":"multi","n_queries":4}'
-echo "Testing Multi-Query..."
-resp="$(curl -fsS -X POST "$API/query" -H "Content-Type: application/json" -d "$BODY")"
-echo "$resp" | jq . >/dev/null
-
-mode="$(echo "$resp" | jq -r '.meta.mode')"
-nq="$(echo "$resp" | jq -r '.meta.n_queries')"
-
-[[ "$mode" == "multi" ]] || { echo "Expected mode=multi, got: $mode"; exit 1; }
-[[ "$nq" -ge 2 ]] || { echo "Expected n_queries>=2, got: $nq"; exit 1; }
-
-echo "Multi-Query OK ✅"
-```
-
-**`bash-tests/test_fusion.sh`**
-```bash
-#!/usr/bin/env bash
-set -euo pipefail
-API="${API:-http://localhost:8000}"
-
-BODY='{"query":"Who is the CEO of OpenAI?","k":5,"mode":"fusion","n_queries":4}'
-echo "Testing RAG-Fusion (RRF)..."
-resp="$(curl -fsS -X POST "$API/query" -H "Content-Type: application/json" -d "$BODY")"
-echo "$resp" | jq . >/dev/null
-
-mode="$(echo "$resp" | jq -r '.meta.mode')"
-rrf="$(echo "$resp" | jq -r '.meta.rrf_k')"
-
-[[ "$mode" == "fusion" ]] || { echo "Expected mode=fusion, got: $mode"; exit 1; }
-[[ "$rrf" != "null" ]] || { echo "Expected rrf_k to be set"; exit 1; }
-
-echo "Fusion OK ✅"
-```
-
 ---
 
 ## Lokalno (bez Dockera)
