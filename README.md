@@ -1,4 +1,4 @@
-# Valere RAG (REST)
+# RAG (REST)
 
 Minimalni RAG demo: **20 Newsgroups → Qdrant (vector DB) → FastAPI REST → LLM (OpenAI/Ollama/Mock)**  
 Uz to: **Query Translation**, **Multi-Query** i **RAG-Fusion (RRF)**.
